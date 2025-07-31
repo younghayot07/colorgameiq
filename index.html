@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Sequence Memory Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <audio id="red-sound" src="do.mp3" preload="auto"></audio>
+    <audio id="blue-sound" src="re.mp3" preload="auto"></audio>
+    <audio id="green-sound" src="mi.mp3" preload="auto"></audio>
+    <audio id="yellow-sound" src="fa.mp3" preload="auto"></audio>
+    <audio id="purple-sound" src="so.mp3" preload="auto"></audio>
+    <audio id="orange-sound" src="lya.mp3" preload="auto"></audio>
+    <audio id="gameover-sound" src="win.mp3" preload="auto"></audio>
+    <audio id="levelup-sound" src="" preload="auto"></audio>
+
+    <style>
+        .game-btn {
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .game-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .game-btn.active {
+            transform: scale(0.95);
+            filter: brightness(1.5);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .music-note {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0;
+            pointer-events: none;
+            animation: floatNote 1.5s ease-out forwards;
+        }
+
+        @keyframes floatNote {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(20deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden p-6 space-y-6">
+        <h1 class="text-3xl font-bold text-center text-indigo-600">Color Sequence Memory</h1>
+        
+        <div class="flex justify-between items-center">
+            <div class="text-lg font-semibold">Level: <span id="level" class="text-indigo-600">1</span></div>
+            <div class="text-lg font-semibold">Score: <span id="score" class="text-indigo-600">0</span></div>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-4">
+            <button id="red" class="game-btn bg-red-500 rounded-lg h-32 w-full hover:bg-red-600 focus:outline-none"></button>
+            <button id="blue" class="game-btn bg-blue-500 rounded-lg h-32 w-full hover:bg-blue-600 focus:outline-none"></button>
+            <button id="green" class="game-btn bg-green-500 rounded-lg h-32 w-full hover:bg-green-600 focus:outline-none"></button>
+            <button id="yellow" class="game-btn bg-yellow-400 rounded-lg h-32 w-full hover:bg-yellow-500 focus:outline-none"></button>
+            <button id="purple" class="game-btn bg-purple-500 rounded-lg h-32 w-full hover:bg-purple-600 focus:outline-none"></button>
+            <button id="orange" class="game-btn bg-orange-500 rounded-lg h-32 w-full hover:bg-orange-600 focus:outline-none"></button>
+        </div>
+        
+        <div id="message" class="text-center text-lg font-medium min-h-8"></div>
+        
+        <div class="flex justify-center">
+            <button id="startBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-full transition">
+                Start Game
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const buttons = {
+                red: document.getElementById('red'),
+                blue: document.getElementById('blue'),
+                green: document.getElementById('green'),
+                yellow: document.getElementById('yellow'),
+                purple: document.getElementById('purple'),
+                orange: document.getElementById('orange')
+            };
+            
+            const levelDisplay = document.getElementById('level');
+            const scoreDisplay = document.getElementById('score');
+            const messageDisplay = document.getElementById('message');
+            const startBtn = document.getElementById('startBtn');
+            
+            let sequence = [];
+            let playerSequence = [];
+            let level = 1;
+            let score = 0;
+            let gameActive = false;
+            
+            // Initialize button event listeners
+            Object.keys(buttons).forEach(color => {
+                buttons[color].addEventListener('click', () => {
+                    if (!gameActive) return;
+                    
+                    // Highlight the clicked button and play sound with music notes
+                    buttons[color].classList.add('active');
+                    const sound = document.getElementById(`${color}-sound`);
+                    sound.currentTime = 0;
+                    sound.play();
+                    
+                    // Create music notes
+                    const notes = ['♪', '♫', '♩', '♬'];
+                    const noteCount = 3;
+                    const buttonRect = buttons[color].getBoundingClientRect();
+                    
+                    for (let i = 0; i < noteCount; i++) {
+                        const note = document.createElement('div');
+                        note.className = 'music-note';
+                        note.textContent = notes[Math.floor(Math.random() * notes.length)];
+                        note.style.left = `${buttonRect.left + buttonRect.width/2 + (Math.random() * 20 - 10)}px`;
+                        note.style.top = `${buttonRect.top + buttonRect.height/2}px`;
+                        note.style.color = window.getComputedStyle(buttons[color]).backgroundColor;
+                        document.body.appendChild(note);
+                        
+                        // Remove note after animation
+                        setTimeout(() => {
+                            note.remove();
+                        }, 1500);
+                    }
+                    
+                    setTimeout(() => {
+                        buttons[color].classList.remove('active');
+                    }, 200);
+                    
+                    // Add to player sequence
+                    playerSequence.push(color);
+                    
+                    // Check if correct
+                    if (playerSequence[playerSequence.length - 1] !== sequence[playerSequence.length - 1]) {
+                        gameOver();
+                        return;
+                    }
+                    
+                    // Check if sequence complete
+                    if (playerSequence.length === sequence.length) {
+                        levelComplete();
+                    }
+                });
+            });
+            
+            startBtn.addEventListener('click', startGame);
+            
+            function startGame() {
+                sequence = [];
+                playerSequence = [];
+                level = 1;
+                score = 0;
+                gameActive = false;
+                
+                levelDisplay.textContent = level;
+                scoreDisplay.textContent = score;
+                messageDisplay.textContent = 'Watch the sequence carefully!';
+                messageDisplay.classList.add('fade-in');
+                
+                startBtn.textContent = 'Playing...';
+                startBtn.disabled = true;
+                
+                // Start with first level
+                setTimeout(() => {
+                    nextLevel();
+                }, 1000);
+            }
+            
+            function nextLevel() {
+                gameActive = false;
+                playerSequence = [];
+                levelDisplay.textContent = level;
+                
+                // Add a random color to sequence
+                const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                sequence.push(randomColor);
+                
+                // Show the sequence to player
+                showSequence();
+            }
+            
+            function showSequence() {
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i >= sequence.length) {
+                        clearInterval(interval);
+                        messageDisplay.textContent = 'Your turn! Repeat the sequence.';
+                        messageDisplay.classList.add('fade-in');
+                        gameActive = true;
+                        return;
+                    }
+                   
+                    const color = sequence[i];
+                    buttons[color].classList.add('active');
+                    const sound = document.getElementById(`${color}-sound`);
+                    sound.currentTime = 0;
+                    sound.play();
+                    
+                    // Create music notes for computer sequence
+                    const notes = ['♪', '♫', '♩', '♬'];
+                    const noteCount = 3;
+                    const buttonRect = buttons[color].getBoundingClientRect();
+                    
+                    for (let i = 0; i < noteCount; i++) {
+                        const note = document.createElement('div');
+                        note.className = 'music-note';
+                        note.textContent = notes[Math.floor(Math.random() * notes.length)];
+                        note.style.left = `${buttonRect.left + buttonRect.width/2 + (Math.random() * 20 - 10)}px`;
+                        note.style.top = `${buttonRect.top + buttonRect.height/2}px`;
+                        note.style.color = window.getComputedStyle(buttons[color]).backgroundColor;
+                        document.body.appendChild(note);
+                        
+                        setTimeout(() => {
+                            note.remove();
+                        }, 1500);
+                    }
+                    
+                    setTimeout(() => {
+                        buttons[color].classList.remove('active');
+                    }, 500);
+                    
+                    i++;
+                }, 800);
+            }
+            
+            function levelComplete() {
+                document.getElementById('levelup-sound').play();
+                score += level * 10;
+                level++;
+                scoreDisplay.textContent = score;
+                messageDisplay.textContent = 'Correct! Next level...';
+                messageDisplay.classList.add('fade-in');
+                
+                setTimeout(() => {
+                    nextLevel();
+                }, 1500);
+            }
+            
+            function gameOver() {
+                document.getElementById('gameover-sound').play();
+                gameActive = false;
+                messageDisplay.textContent = `Game Over! Your score: ${score}`;
+                messageDisplay.classList.add('fade-in');
+                
+                // Flash all buttons
+                Object.values(buttons).forEach(btn => {
+                    btn.classList.add('active');
+                });
+                
+                setTimeout(() => {
+                    Object.values(buttons).forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                }, 500);
+                
+                startBtn.textContent = 'Play Again';
+                startBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
